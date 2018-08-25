@@ -1,0 +1,45 @@
+{
+  "name": "gulp-blade-extend",
+  "version": "1.0.0",
+  "description": "Support for writing HTML, JavaScript and CSS in the blade at the same time",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mydansun/gulp-blade-extend.git"
+  },
+  "keywords": [
+    "Blade",
+    "JavaScript",
+    "CSS",
+    "Laravel"
+  ],
+  "author": "mydansun@gmail.com",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/mydansun/gulp-blade-extend/issues"
+  },
+  "homepage": "https://github.com/mydansun/gulp-blade-extend#readme",
+  "dependencies": {
+    "babel-core": "^6.24.0",
+    "babel-preset-es2015": "^6.24.0",
+    "fs-extra": "^2.1.2",
+    "gulp": "^3.9.1",
+    "gulp-babel": "^6.1.2",
+    "gulp-clean-css": "^3.9.0",
+    "gulp-concat": "^2.6.1",
+    "gulp-less": "^3.3.0",
+    "gulp-plumber": "^1.1.0",
+    "gulp-uglify": "^3.0.0",
+    "gulp-util": "^3.0.8",
+    "less": "^3.8.1",
+    "md5": "^2.2.1",
+    "pump": "^1.0.2",
+    "through2": "^2.0.3",
+    "uglify-js": "^2.8.21",
+    "uglifycss": "0.0.27",
+    "underscore": "^1.8.3"
+  }
+}
