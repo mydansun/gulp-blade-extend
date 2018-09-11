@@ -69,7 +69,7 @@ function gulpBladeExtend(options = {}) {
 
             if (md5Record.toUpperCase() !== currentBladeMd5.toUpperCase()) {
                 console.log(bladeRelativePath);
-                const cssExp = /<style\s+data-inside>([\s\S]*?)<\/style>/gi;
+                const cssExp = /<style\s+data-inside.*?>([\s\S]*?)<\/style>/gi;
                 const cssResult = cssExp.exec(content);
                 if (cssResult !== null) {
                     const cssFileName = md5(bladeRelativePath) + '.css';
