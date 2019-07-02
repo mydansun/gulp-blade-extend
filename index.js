@@ -4,11 +4,11 @@ const through = require('through2'),
     fs = require('fs-extra'),
     path = require('path'),
     md5 = require('md5'),
-    gutil = require('gulp-util'),
     ugJs = require("uglify-js"),
     ugCss = require('uglifycss'),
     less = require("less"),
-    PluginError = gutil.PluginError;
+    sass = require("node-sass"),
+    PluginError = require('plugin-error');
 
 // PLUGIN_NAME
 const PLUGIN_NAME = 'gulp-blade-extend';
@@ -16,10 +16,11 @@ const PLUGIN_NAME = 'gulp-blade-extend';
 // Main function
 function gulpBladeExtend(options = {}) {
     _.defaults(options, {
-        jsDistPath: null,   //js output path
-        cssDistPath: null,   //css output path
-        bladeDistPath: null, //blade output path
-        minify: false,  //compression
+        jsDistPath: null,   // js output path
+        cssDistPath: null,   // css output path
+        bladeSrcPath: null, // blade source path
+        bladeDistPath: null, // blade output path
+        minify: false,  // enable compression?
         version: "",
 
         //js blade template
@@ -46,49 +47,61 @@ function gulpBladeExtend(options = {}) {
     }
 
     // Create a new stream
-    return through.obj(function (file, enc, cb) {
+    return through.obj(function (file, encoding, callback) {
         const $this = this;
         if (file.isNull()) {
             this.push(file);
-            return cb();
+            // nothing to do
+            return callback(null, file);
         }
 
         if (file.isStream()) {
-            this.emit('error', new PluginError(PLUGIN_NAME, 'Streams are not supported!'));
-            return cb();
+            this.emit('error', new PluginError(PLUGIN_NAME, 'Streams not supported!'));
         }
 
         if (file.isBuffer()) {
-            const bladeRelativePath = path.relative(path.resolve('resources/views'), file.path);
-            let content = file.contents.toString();
+            const bladeRelativePath = path.relative(path.resolve(options.bladeSrcPath), file.path);
+            let fileContent = file.contents.toString();
 
-            const currentBladeMd5 = String(md5(content + options.version));
-            const md5Recorder = path.join(options.bladeDistPath, bladeRelativePath) + '.md5';
-            fs.ensureFileSync(md5Recorder);
-            const md5Record = fs.readFileSync(md5Recorder, "utf-8");
+            const currentBladeMd5 = String(md5(fileContent + options.version));
+            const md5File = path.join(options.bladeDistPath, bladeRelativePath) + '.md5';
+            fs.ensureFileSync(md5File);
+            const previousBladeMd5 = fs.readFileSync(md5File, "utf-8");
 
-            if (md5Record.toUpperCase() !== currentBladeMd5.toUpperCase()) {
-                console.log(bladeRelativePath);
-                const cssExp = /<style\s+data-inside.*?>([\s\S]*?)<\/style>/gi;
-                const cssResult = cssExp.exec(content);
+            if (previousBladeMd5.toLowerCase() !== currentBladeMd5.toLowerCase()) {
+                console.log(`Compiling ${bladeRelativePath}`);
+                const cssExp = /<style\s+data-scoped(.*?)>([\s\S]*?)<\/style>/gi;
+                const cssResult = cssExp.exec(fileContent);
                 if (cssResult !== null) {
                     const cssFileName = md5(bladeRelativePath) + '.css';
                     const cssImportPath = options.cssDistPath + '/' + cssFileName + '?v=' + currentBladeMd5;
-                    content = content.replace(cssExp, options.cssImport.replace(/\$path/i, cssImportPath));
+                    fileContent = fileContent.replace(cssExp, options.cssImport.replace(/\$path/i, cssImportPath));
 
-                    let cssFinalContent = cssResult[1];
-                    less.render(cssFinalContent, function (e, output) {
-                        let css = output.css;
-                        if (options.minify) {
-                            css = ugCss.processString(css);
-                        }
-                        fs.outputFileSync(path.join("public/", options.cssDistPath, cssFileName), css);
-                    });
+                    const cssAttributes = cssResult[1];
+                    const cssContent = cssResult[2];
+                    if (cssAttributes.indexOf("text/less") !== -1) {
+                        less.render(cssContent, function (e, output) {
+                            let css = output.css;
+                            if (options.minify) {
+                                css = ugCss.processString(css);
+                            }
+                            fs.outputFileSync(path.join("public/", options.cssDistPath, cssFileName), css);
+                        });
+                    } else if (cssAttributes.indexOf("text/scss") !== -1) {
+                        sass.render({
+                            data: cssContent,
+                        }, function (err, result) {
+                            let css = result.css;
+                            if (options.minify) {
+                                css = ugCss.processString(css);
+                            }
+                            fs.outputFileSync(path.join("public/", options.cssDistPath, cssFileName), css);
+                        });
+                    }
                 }
 
-
-                const cssSameExp = /<style\s+data-same="(.*?)"><\/style>/gi;
-                const cssSameResult = cssSameExp.exec(content);
+                const cssSameExp = /<style\s+data-import="(.*?)"><\/style>/gi;
+                const cssSameResult = cssSameExp.exec(fileContent);
                 if (cssSameResult !== null) {
                     let sameBabelRelativePath = cssSameResult[1];
                     if (!sameBabelRelativePath.endsWith('.blade.php')) {
@@ -98,16 +111,16 @@ function gulpBladeExtend(options = {}) {
                     const bladeRelativePath = path.relative(path.resolve('resources/views'), sameBabelRealPath);
                     const cssFileName = md5(bladeRelativePath) + '.css';
                     const cssImportPath = options.cssDistPath + '/' + cssFileName + '?v=' + currentBladeMd5;
-                    content = content.replace(cssSameExp, options.cssImport.replace(/\$path/i, cssImportPath));
+                    fileContent = fileContent.replace(cssSameExp, options.cssImport.replace(/\$path/i, cssImportPath));
                 }
 
 
-                const scriptExp = /<script\s+data-inside>([\s\S]*?)<\/script>/gi;
-                const scriptResult = scriptExp.exec(content);
+                const scriptExp = /<script\s+data-scoped>([\s\S]*?)<\/script>/gi;
+                const scriptResult = scriptExp.exec(fileContent);
                 if (scriptResult !== null) {
                     const jsFileName = md5(bladeRelativePath) + '.js';
                     const jsImportPath = options.jsDistPath + '/' + jsFileName + '?v=' + currentBladeMd5;
-                    content = content.replace(scriptExp, options.jsImport.replace(/\$path/i, jsImportPath));
+                    fileContent = fileContent.replace(scriptExp, options.jsImport.replace(/\$path/i, jsImportPath));
 
                     const jsContent = scriptResult[1];
                     const vm = require("vm");
@@ -130,7 +143,7 @@ function gulpBladeExtend(options = {}) {
                         mainFunctionString += '$(' + sandbox.exports.main.toString() + ');';
                     }
                     const trans = babel.transform(mainFunctionString, {
-                        presets: 'es2015',
+                        presets: 'env',
                         plugins: ["transform-regenerator"]
                     });
 
@@ -140,7 +153,6 @@ function gulpBladeExtend(options = {}) {
                             let originalCode = fs.readFileSync(includeFile, 'utf8');
                             if (options.minify) {
                                 originalCode = ugJs.minify(originalCode, {
-                                    fromString: true,
                                     compress: false,
                                     mangle: false
                                 }).code;
@@ -153,7 +165,7 @@ function gulpBladeExtend(options = {}) {
                     });
                     let jsFinalTransCode = trans.code;
                     if (options.minify) {
-                        jsFinalTransCode = ugJs.minify(jsFinalTransCode, {fromString: true}).code;
+                        jsFinalTransCode = ugJs.minify(jsFinalTransCode).code;
                     }
                     jsContents.push(jsFinalTransCode);
 
@@ -161,8 +173,8 @@ function gulpBladeExtend(options = {}) {
                     fs.outputFileSync(path.join("public/", options.jsDistPath, jsFileName), jsFinalContent);
                 }
 
-                const scriptSameExp = /<script\s+data-same="(.*?)"><\/script>/gi;
-                const scriptSameResult = scriptSameExp.exec(content);
+                const scriptSameExp = /<script\s+data-import="(.*?)"><\/script>/gi;
+                const scriptSameResult = scriptSameExp.exec(fileContent);
                 if (scriptSameResult !== null) {
                     let sameBabelRelativePath = scriptSameResult[1];
                     if (!sameBabelRelativePath.endsWith('.blade.php')) {
@@ -172,20 +184,20 @@ function gulpBladeExtend(options = {}) {
                     const bladeRelativePath = path.relative(path.resolve('resources/views'), sameBabelRealPath);
                     const jsFileName = md5(bladeRelativePath) + '.js';
                     const jsImportPath = options.jsDistPath + '/' + jsFileName + '?v=' + currentBladeMd5;
-                    content = content.replace(scriptSameExp, options.jsImport.replace(/\$path/i, jsImportPath));
+                    fileContent = fileContent.replace(scriptSameExp, options.jsImport.replace(/\$path/i, jsImportPath));
                 }
 
                 //Remove excess indentations
-                content = content.replace(/\/\/@[$\n\r]/ig, '');
+                fileContent = fileContent.replace(/\/\/@[$\n\r]/ig, '');
                 //Remove IDEA @formatter mark
-                content = content.replace(/{{--\s*@formatter:\S+\s*--}}\n?/ig, '');
+                fileContent = fileContent.replace(/{{--\s*@formatter:\S+\s*--}}\n?/ig, '');
                 //Remove HTML comment
-                content = content.replace(/<!--[^\[][\s\S]*?-->\n?/ig, '');
+                fileContent = fileContent.replace(/<!--[^\[][\s\S]*?-->\n?/ig, '');
 
                 //Write new content to file
-                file.contents = new Buffer(content);
+                file.contents = new Buffer(fileContent);
 
-                fs.outputFileSync(md5Recorder, currentBladeMd5);
+                fs.outputFileSync(md5File, currentBladeMd5);
             } else {
                 //Don't forget to let the unmodified file also get the Buffer of the previous version of the compiled file.
                 const targetFile = path.join(options.bladeDistPath, bladeRelativePath);
