@@ -18,7 +18,7 @@ function gulpBladeExtend(options = {}) {
     _.defaults(options, {
         jsDistPath: null,   // js output path
         cssDistPath: null,   // css output path
-        bladeSrcPath: null, // blade source path
+        bladeSrcPath: 'resources/views', // blade source path
         bladeDistPath: null, // blade output path
         minify: false,  // enable compression?
         version: "",
