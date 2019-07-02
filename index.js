@@ -57,6 +57,7 @@ function gulpBladeExtend(options = {}) {
 
         if (file.isStream()) {
             this.emit('error', new PluginError(PLUGIN_NAME, 'Streams not supported!'));
+            return callback();
         }
 
         if (file.isBuffer()) {
@@ -128,19 +129,24 @@ function gulpBladeExtend(options = {}) {
                         exports: {
                             include: [],
                             init: null,
-                            main: null,
+                            ready: null,
                         }
                     };
                     vm.createContext(sandbox);
-                    vm.runInContext(jsContent, sandbox);
+                    try {
+                        vm.runInContext(jsContent, sandbox);
+                    } catch (error) {
+                        $this.emit('error', new PluginError(PLUGIN_NAME, `${error.toString()} in ${file.path}`));
+                        return callback();
+                    }
 
                     let mainFunctionString = "";
                     if (_.isFunction(sandbox.exports.init)) {
                         mainFunctionString += '(' + sandbox.exports.init.toString() + ')();\n\n';
                     }
 
-                    if (_.isFunction(sandbox.exports.main)) {
-                        mainFunctionString += '$(' + sandbox.exports.main.toString() + ');';
+                    if (_.isFunction(sandbox.exports.ready)) {
+                        mainFunctionString += '$(' + sandbox.exports.ready.toString() + ');';
                     }
                     const trans = babel.transform(mainFunctionString, {
                         presets: ["env"],
@@ -160,7 +166,7 @@ function gulpBladeExtend(options = {}) {
                             jsContents.push(originalCode);
                         } catch (error) {
                             $this.emit('error', new PluginError(PLUGIN_NAME, `${error.toString()} in ${file.path}`));
-                            return cb();
+                            return callback();
                         }
                     });
                     let jsFinalTransCode = trans.code;
@@ -209,7 +215,7 @@ function gulpBladeExtend(options = {}) {
         this.push(file);
 
         // Finished
-        cb();
+        callback();
     });
 }
 
