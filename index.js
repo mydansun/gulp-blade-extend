@@ -143,7 +143,7 @@ function gulpBladeExtend(options = {}) {
                         mainFunctionString += '$(' + sandbox.exports.main.toString() + ');';
                     }
                     const trans = babel.transform(mainFunctionString, {
-                        presets: 'env',
+                        presets: ["env"],
                         plugins: ["transform-regenerator"]
                     });
 
