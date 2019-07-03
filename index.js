@@ -201,6 +201,8 @@ function gulpBladeExtend(options = {}) {
 
                 //Remove excess indentations
                 fileContent = fileContent.replace(/\/\/@[$\n\r]/ig, '');
+                fileContent = fileContent.replace(/@void[$\n\r]/ig, '');
+
                 //Remove IDEA @formatter mark
                 fileContent = fileContent.replace(/{{--\s*@formatter:\S+\s*--}}\n?/ig, '');
                 //Remove HTML comment
