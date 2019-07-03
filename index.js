@@ -121,12 +121,12 @@ function gulpBladeExtend(options = {}) {
                 if (scriptResult !== null) {
                     const jsFileName = md5(bladeRelativePath) + '.js';
                     const jsImportPath = options.jsDistPath + '/' + jsFileName + '?v=' + currentBladeMd5;
-                    fileContent = fileContent.replace(scriptExp, options.jsImport.replace(/\$path/i, jsImportPath));
 
                     const jsContent = scriptResult[1];
                     const vm = require("vm");
                     const sandbox = {
                         exports: {
+                            required: [],
                             include: [],
                             init: null,
                             ready: null,
@@ -139,6 +139,12 @@ function gulpBladeExtend(options = {}) {
                         $this.emit('error', new PluginError(PLUGIN_NAME, `${error.toString()} in ${file.path}`));
                         return callback();
                     }
+
+                    let jsReplaceContent = options.jsImport.replace(/\$path/i, jsImportPath);
+                    sandbox.exports.required.forEach((requiredFile, index) => {
+                        jsReplaceContent = options.jsImport.replace(/\$path/i, requiredFile) + "/n" + jsReplaceContent;
+                    });
+                    fileContent = fileContent.replace(scriptExp, jsReplaceContent);
 
                     let mainFunctionString = "";
                     if (_.isFunction(sandbox.exports.init)) {
