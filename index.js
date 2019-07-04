@@ -17,6 +17,7 @@ const PLUGIN_NAME = 'gulp-blade-extend';
 function gulpBladeExtend(options = {}) {
     _.defaults(options, {
         jsDistPath: null,   // js output path
+        cssDependencies: [],
         cssDistPath: null,   // css output path
         bladeSrcPath: 'resources/views', // blade source path
         bladeDistPath: null, // blade output path
@@ -79,7 +80,12 @@ function gulpBladeExtend(options = {}) {
                     fileContent = fileContent.replace(cssExp, options.cssImport.replace(/\$path/i, cssImportPath));
 
                     const cssAttributes = cssResult[1];
-                    const cssContent = cssResult[2];
+                    let cssContent = cssResult[2];
+
+                    cssDependencies.forEach((dependentFile, index) => {
+                        cssContent = fs.readFileSync(dependentFile, "utf-8") + "\n" + cssContent;
+                    });
+
                     if (cssAttributes.indexOf("text/less") !== -1) {
                         less.render(cssContent, function (e, output) {
                             let css = output.css;
