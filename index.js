@@ -156,7 +156,7 @@ function gulpBladeExtend(options = {}) {
 
                         let jsReplaceContent = options.jsImport.replace(/\$path/i, jsImportPath);
                         for (const requiredFile of sandbox.exports.required) {
-                            jsReplaceContent = options.jsImport.replace(/\$path/i, requiredFile) + "/n" + jsReplaceContent;
+                            jsReplaceContent = options.jsImport.replace(/\$path/i, requiredFile) + "\n" + jsReplaceContent;
                         }
                         fileContent = fileContent.replace(scriptExp, jsReplaceContent);
 
