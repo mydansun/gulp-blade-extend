@@ -17,7 +17,6 @@ const PLUGIN_NAME = 'gulp-blade-extend';
 function gulpBladeExtend(options = {}) {
     _.defaults(options, {
         jsDistPath: null,   // js output path
-        cssDependencies: [],
         cssDistPath: null,   // css output path
         bladeSrcPath: 'resources/views', // blade source path
         bladeDistPath: null, // blade output path
@@ -74,150 +73,163 @@ function gulpBladeExtend(options = {}) {
                 console.log(`Compiling ${bladeRelativePath}`);
                 const cssExp = /<style\s+data-scoped(.*?)>([\s\S]*?)<\/style>/gi;
                 const cssResult = cssExp.exec(fileContent);
+                let cssRenderer = new Promise((resolve) => {
+                    return resolve();
+                });
                 if (cssResult !== null) {
                     const cssFileName = md5(bladeRelativePath) + '.css';
                     const cssImportPath = options.cssDistPath + '/' + cssFileName + '?v=' + currentBladeMd5;
                     fileContent = fileContent.replace(cssExp, options.cssImport.replace(/\$path/i, cssImportPath));
 
                     const cssAttributes = cssResult[1];
-                    let cssContent = cssResult[2];
+                    const cssContent = cssResult[2];
 
-                    options.cssDependencies.forEach((dependentFile, index) => {
-                        cssContent = fs.readFileSync(dependentFile, "utf-8") + "\n" + cssContent;
-                    });
-
-                    if (cssAttributes.indexOf("text/less") !== -1) {
-                        less.render(cssContent, function (e, output) {
-                            let css = output.css;
-                            if (options.minify) {
-                                css = ugCss.processString(css);
-                            }
-                            fs.outputFileSync(path.join("public/", options.cssDistPath, cssFileName), css);
-                        });
-                    } else if (cssAttributes.indexOf("text/scss") !== -1) {
-                        sass.render({
-                            data: cssContent,
-                        }, function (err, result) {
-                            let css = result.css;
-                            if (options.minify) {
-                                css = ugCss.processString(css);
-                            }
-                            fs.outputFileSync(path.join("public/", options.cssDistPath, cssFileName), css);
-                        });
-                    }
-                }
-
-                const cssSameExp = /<style\s+data-import="(.*?)"><\/style>/gi;
-                const cssSameResult = cssSameExp.exec(fileContent);
-                if (cssSameResult !== null) {
-                    let sameBabelRelativePath = cssSameResult[1];
-                    if (!sameBabelRelativePath.endsWith('.blade.php')) {
-                        sameBabelRelativePath += '.blade.php';
-                    }
-                    const sameBabelRealPath = path.resolve(path.dirname(file.path), sameBabelRelativePath);
-                    const bladeRelativePath = path.relative(path.resolve('resources/views'), sameBabelRealPath);
-                    const cssFileName = md5(bladeRelativePath) + '.css';
-                    const cssImportPath = options.cssDistPath + '/' + cssFileName + '?v=' + currentBladeMd5;
-                    fileContent = fileContent.replace(cssSameExp, options.cssImport.replace(/\$path/i, cssImportPath));
-                }
-
-
-                const scriptExp = /<script\s+data-scoped>([\s\S]*?)<\/script>/gi;
-                const scriptResult = scriptExp.exec(fileContent);
-                if (scriptResult !== null) {
-                    const jsFileName = md5(bladeRelativePath) + '.js';
-                    const jsImportPath = options.jsDistPath + '/' + jsFileName + '?v=' + currentBladeMd5;
-
-                    const jsContent = scriptResult[1];
-                    const vm = require("vm");
-                    const sandbox = {
-                        exports: {
-                            required: [],
-                            include: [],
-                            init: null,
-                            ready: null,
+                    cssRenderer = new Promise((resolve, reject) => {
+                        if (cssAttributes.indexOf("text/less") !== -1) {
+                            less.render(cssContent, (err, output) => {
+                                if (err) {
+                                    return reject(err);
+                                }
+                                let css = output.css;
+                                if (options.minify) {
+                                    css = ugCss.processString(css);
+                                }
+                                fs.outputFileSync(path.join("public/", options.cssDistPath, cssFileName), css);
+                                return resolve();
+                            });
+                        } else if (cssAttributes.indexOf("text/scss") !== -1) {
+                            sass.render({
+                                data: cssContent,
+                            }, (err, result) => {
+                                if (err) {
+                                    return reject(err);
+                                }
+                                let css = result.css;
+                                if (options.minify) {
+                                    css = ugCss.processString(css);
+                                }
+                                fs.outputFileSync(path.join("public/", options.cssDistPath, cssFileName), css);
+                                return resolve();
+                            });
                         }
-                    };
-                    vm.createContext(sandbox);
-                    try {
-                        vm.runInContext(jsContent, sandbox);
-                    } catch (error) {
-                        $this.emit('error', new PluginError(PLUGIN_NAME, `${error.toString()} in ${file.path}`));
-                        return callback();
-                    }
-
-                    let jsReplaceContent = options.jsImport.replace(/\$path/i, jsImportPath);
-                    sandbox.exports.required.forEach((requiredFile, index) => {
-                        jsReplaceContent = options.jsImport.replace(/\$path/i, requiredFile) + "/n" + jsReplaceContent;
                     });
-                    fileContent = fileContent.replace(scriptExp, jsReplaceContent);
+                }
 
-                    let mainFunctionString = "";
-                    if (_.isFunction(sandbox.exports.init)) {
-                        mainFunctionString += '(' + sandbox.exports.init.toString() + ')();\n\n';
+                cssRenderer.then(() => {
+                    const cssSameExp = /<style\s+data-import="(.*?)"><\/style>/gi;
+                    const cssSameResult = cssSameExp.exec(fileContent);
+                    if (cssSameResult !== null) {
+                        let sameBabelRelativePath = cssSameResult[1];
+                        if (!sameBabelRelativePath.endsWith('.blade.php')) {
+                            sameBabelRelativePath += '.blade.php';
+                        }
+                        const sameBabelRealPath = path.resolve(path.dirname(file.path), sameBabelRelativePath);
+                        const bladeRelativePath = path.relative(path.resolve('resources/views'), sameBabelRealPath);
+                        const cssFileName = md5(bladeRelativePath) + '.css';
+                        const cssImportPath = options.cssDistPath + '/' + cssFileName + '?v=' + currentBladeMd5;
+                        fileContent = fileContent.replace(cssSameExp, options.cssImport.replace(/\$path/i, cssImportPath));
                     }
 
-                    if (_.isFunction(sandbox.exports.ready)) {
-                        mainFunctionString += '$(' + sandbox.exports.ready.toString() + ');';
-                    }
-                    const trans = babel.transform(mainFunctionString, {
-                        presets: ["env"],
-                        plugins: ["transform-regenerator"]
-                    });
+                    const scriptExp = /<script\s+data-scoped>([\s\S]*?)<\/script>/gi;
+                    const scriptResult = scriptExp.exec(fileContent);
+                    if (scriptResult !== null) {
+                        const jsFileName = md5(bladeRelativePath) + '.js';
+                        const jsImportPath = options.jsDistPath + '/' + jsFileName + '?v=' + currentBladeMd5;
 
-                    let jsContents = [];
-                    sandbox.exports.include.forEach((includeFile, index) => {
-                        try {
-                            let originalCode = fs.readFileSync(includeFile, 'utf8');
-                            if (options.minify) {
-                                originalCode = ugJs.minify(originalCode, {
-                                    compress: false,
-                                    mangle: false
-                                }).code;
+                        const jsContent = scriptResult[1];
+                        const vm = require("vm");
+                        const sandbox = {
+                            exports: {
+                                required: [],
+                                include: [],
+                                init: null,
+                                ready: null,
                             }
-                            jsContents.push(originalCode);
+                        };
+                        vm.createContext(sandbox);
+                        try {
+                            vm.runInContext(jsContent, sandbox);
                         } catch (error) {
                             $this.emit('error', new PluginError(PLUGIN_NAME, `${error.toString()} in ${file.path}`));
                             return callback();
                         }
-                    });
-                    let jsFinalTransCode = trans.code;
-                    if (options.minify) {
-                        jsFinalTransCode = ugJs.minify(jsFinalTransCode).code;
+
+                        let jsReplaceContent = options.jsImport.replace(/\$path/i, jsImportPath);
+                        for (const requiredFile of sandbox.exports.required) {
+                            jsReplaceContent = options.jsImport.replace(/\$path/i, requiredFile) + "/n" + jsReplaceContent;
+                        }
+                        fileContent = fileContent.replace(scriptExp, jsReplaceContent);
+
+                        let mainFunctionString = "";
+                        if (_.isFunction(sandbox.exports.init)) {
+                            mainFunctionString += '(' + sandbox.exports.init.toString() + ')();\n\n';
+                        }
+
+                        if (_.isFunction(sandbox.exports.ready)) {
+                            mainFunctionString += '$(' + sandbox.exports.ready.toString() + ');';
+                        }
+                        const trans = babel.transform(mainFunctionString, {
+                            presets: ["env"],
+                            plugins: ["transform-regenerator"]
+                        });
+
+                        let jsContents = [];
+                        for (const includeFile of sandbox.exports.include) {
+                            try {
+                                let originalCode = fs.readFileSync(includeFile, 'utf8');
+                                if (options.minify) {
+                                    originalCode = ugJs.minify(originalCode, {
+                                        compress: false,
+                                        mangle: false
+                                    }).code;
+                                }
+                                jsContents.push(originalCode);
+                            } catch (error) {
+                                $this.emit('error', new PluginError(PLUGIN_NAME, `${error.toString()} in ${file.path}`));
+                                return callback();
+                            }
+                        }
+                        let jsFinalTransCode = trans.code;
+                        if (options.minify) {
+                            jsFinalTransCode = ugJs.minify(jsFinalTransCode).code;
+                        }
+                        jsContents.push(jsFinalTransCode);
+
+                        const jsFinalContent = jsContents.join('\n');
+                        fs.outputFileSync(path.join("public/", options.jsDistPath, jsFileName), jsFinalContent);
                     }
-                    jsContents.push(jsFinalTransCode);
 
-                    const jsFinalContent = jsContents.join('\n');
-                    fs.outputFileSync(path.join("public/", options.jsDistPath, jsFileName), jsFinalContent);
-                }
-
-                const scriptSameExp = /<script\s+data-import="(.*?)"><\/script>/gi;
-                const scriptSameResult = scriptSameExp.exec(fileContent);
-                if (scriptSameResult !== null) {
-                    let sameBabelRelativePath = scriptSameResult[1];
-                    if (!sameBabelRelativePath.endsWith('.blade.php')) {
-                        sameBabelRelativePath += '.blade.php';
+                    const scriptSameExp = /<script\s+data-import="(.*?)"><\/script>/gi;
+                    const scriptSameResult = scriptSameExp.exec(fileContent);
+                    if (scriptSameResult !== null) {
+                        let sameBabelRelativePath = scriptSameResult[1];
+                        if (!sameBabelRelativePath.endsWith('.blade.php')) {
+                            sameBabelRelativePath += '.blade.php';
+                        }
+                        const sameBabelRealPath = path.resolve(path.dirname(file.path), sameBabelRelativePath);
+                        const bladeRelativePath = path.relative(path.resolve('resources/views'), sameBabelRealPath);
+                        const jsFileName = md5(bladeRelativePath) + '.js';
+                        const jsImportPath = options.jsDistPath + '/' + jsFileName + '?v=' + currentBladeMd5;
+                        fileContent = fileContent.replace(scriptSameExp, options.jsImport.replace(/\$path/i, jsImportPath));
                     }
-                    const sameBabelRealPath = path.resolve(path.dirname(file.path), sameBabelRelativePath);
-                    const bladeRelativePath = path.relative(path.resolve('resources/views'), sameBabelRealPath);
-                    const jsFileName = md5(bladeRelativePath) + '.js';
-                    const jsImportPath = options.jsDistPath + '/' + jsFileName + '?v=' + currentBladeMd5;
-                    fileContent = fileContent.replace(scriptSameExp, options.jsImport.replace(/\$path/i, jsImportPath));
-                }
 
-                //Remove excess indentations
-                fileContent = fileContent.replace(/\/\/@[$\n\r]/ig, '');
-                fileContent = fileContent.replace(/@void[$\n\r]/ig, '');
+                    //Remove excess indentations
+                    fileContent = fileContent.replace(/\/\/@[$\n\r]/ig, '');
+                    fileContent = fileContent.replace(/@void[$\n\r]/ig, '');
 
-                //Remove IDEA @formatter mark
-                fileContent = fileContent.replace(/{{--\s*@formatter:\S+\s*--}}\n?/ig, '');
-                //Remove HTML comment
-                fileContent = fileContent.replace(/<!--[^\[][\s\S]*?-->\n?/ig, '');
+                    //Remove IDEA @formatter mark
+                    fileContent = fileContent.replace(/{{--\s*@formatter:\S+\s*--}}\n?/ig, '');
+                    //Remove HTML comment
+                    fileContent = fileContent.replace(/<!--[^\[][\s\S]*?-->\n?/ig, '');
 
-                //Write new content to file
-                file.contents = new Buffer(fileContent);
+                    //Write new content to file
+                    file.contents = new Buffer(fileContent);
 
-                fs.outputFileSync(md5File, currentBladeMd5);
+                    fs.outputFileSync(md5File, currentBladeMd5);
+                }).catch((err) => {
+                    this.emit('error', new PluginError(PLUGIN_NAME, err));
+                    return callback();
+                })
             } else {
                 //Don't forget to let the unmodified file also get the Buffer of the previous version of the compiled file.
                 const targetFile = path.join(options.bladeDistPath, bladeRelativePath);
