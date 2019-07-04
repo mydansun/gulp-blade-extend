@@ -82,7 +82,7 @@ function gulpBladeExtend(options = {}) {
                     const cssAttributes = cssResult[1];
                     let cssContent = cssResult[2];
 
-                    cssDependencies.forEach((dependentFile, index) => {
+                    options.cssDependencies.forEach((dependentFile, index) => {
                         cssContent = fs.readFileSync(dependentFile, "utf-8") + "\n" + cssContent;
                     });
 
