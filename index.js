@@ -49,6 +49,8 @@ function gulpBladeExtend(options = {}) {
     // Create a new stream
     return through.obj(function (file, encoding, callback) {
         const $this = this;
+        const originalFilePath = file.path;
+
         if (file.isNull()) {
             this.push(file);
             // nothing to do
@@ -61,7 +63,7 @@ function gulpBladeExtend(options = {}) {
         }
 
         if (file.isBuffer()) {
-            const bladeRelativePath = path.relative(path.resolve(options.bladeSrcPath), file.path);
+            const bladeRelativePath = path.relative(path.resolve(options.bladeSrcPath), originalFilePath);
             let fileContent = file.contents.toString();
 
             const currentBladeMd5 = String(md5(fileContent + options.version));
@@ -123,7 +125,7 @@ function gulpBladeExtend(options = {}) {
                         if (!sameBabelRelativePath.endsWith('.blade.php')) {
                             sameBabelRelativePath += '.blade.php';
                         }
-                        const sameBabelRealPath = path.resolve(path.dirname(file.path), sameBabelRelativePath);
+                        const sameBabelRealPath = path.resolve(path.dirname(originalFilePath), sameBabelRelativePath);
                         const bladeRelativePath = path.relative(path.resolve('resources/views'), sameBabelRealPath);
                         const cssFileName = md5(bladeRelativePath) + '.css';
                         const cssImportPath = options.cssDistPath + '/' + cssFileName + '?v=' + currentBladeMd5;
@@ -150,7 +152,7 @@ function gulpBladeExtend(options = {}) {
                         try {
                             vm.runInContext(jsContent, sandbox);
                         } catch (error) {
-                            $this.emit('error', new PluginError(PLUGIN_NAME, `${error.toString()} in ${file.path}`));
+                            $this.emit('error', new PluginError(PLUGIN_NAME, `${error.toString()} in ${originalFilePath}`));
                             return callback();
                         }
 
@@ -185,7 +187,7 @@ function gulpBladeExtend(options = {}) {
                                 }
                                 jsContents.push(originalCode);
                             } catch (error) {
-                                $this.emit('error', new PluginError(PLUGIN_NAME, `${error.toString()} in ${file.path}`));
+                                $this.emit('error', new PluginError(PLUGIN_NAME, `${error.toString()} in ${originalFilePath}`));
                                 return callback();
                             }
                         }
@@ -206,7 +208,7 @@ function gulpBladeExtend(options = {}) {
                         if (!sameBabelRelativePath.endsWith('.blade.php')) {
                             sameBabelRelativePath += '.blade.php';
                         }
-                        const sameBabelRealPath = path.resolve(path.dirname(file.path), sameBabelRelativePath);
+                        const sameBabelRealPath = path.resolve(path.dirname(originalFilePath), sameBabelRelativePath);
                         const bladeRelativePath = path.relative(path.resolve('resources/views'), sameBabelRealPath);
                         const jsFileName = md5(bladeRelativePath) + '.js';
                         const jsImportPath = options.jsDistPath + '/' + jsFileName + '?v=' + currentBladeMd5;
