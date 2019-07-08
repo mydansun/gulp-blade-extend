@@ -5,7 +5,7 @@ const through = require('through2'),
     path = require('path'),
     md5 = require('md5'),
     ugJs = require("uglify-js"),
-    ugCss = require('uglifycss'),
+    CleanCSS = require('clean-css'),
     sass = require("node-sass"),
     PluginError = require('plugin-error');
 
@@ -106,11 +106,11 @@ function gulpBladeExtend(options = {}) {
                         });
                         cssContent = result.css;
                         if (options.minify) {
-                            cssContent = ugCss.processString(cssContent);
+                            cssContent = new CleanCSS().minify(cssContent);
                         }
                     } else {
                         if (options.minify) {
-                            cssContent = ugCss.processString(cssContent);
+                            cssContent = new CleanCSS().minify(cssContent);
                         }
                     }
                     fs.outputFileSync(path.join("public/", options.cssDistPath, cssFileName), cssContent);
