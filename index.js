@@ -106,11 +106,11 @@ function gulpBladeExtend(options = {}) {
                         });
                         cssContent = result.css;
                         if (options.minify) {
-                            cssContent = new CleanCSS().minify(cssContent);
+                            cssContent = new CleanCSS().minify(cssContent).styles;
                         }
                     } else {
                         if (options.minify) {
-                            cssContent = new CleanCSS().minify(cssContent);
+                            cssContent = new CleanCSS().minify(cssContent).styles;
                         }
                     }
                     fs.outputFileSync(path.join("public/", options.cssDistPath, cssFileName), cssContent);
