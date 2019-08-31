@@ -7,7 +7,6 @@ const through = require('through2'),
     ugJs = require("uglify-js"),
     ugCss = require('uglifycss'),
     less = require("less"),
-    sass = require("node-sass"),
     PluginError = require('plugin-error');
 
 // PLUGIN_NAME
@@ -83,16 +82,6 @@ function gulpBladeExtend(options = {}) {
                     if (cssAttributes.indexOf("text/less") !== -1) {
                         less.render(cssContent, function (e, output) {
                             let css = output.css;
-                            if (options.minify) {
-                                css = ugCss.processString(css);
-                            }
-                            fs.outputFileSync(path.join("public/", options.cssDistPath, cssFileName), css);
-                        });
-                    } else if (cssAttributes.indexOf("text/scss") !== -1) {
-                        sass.render({
-                            data: cssContent,
-                        }, function (err, result) {
-                            let css = result.css;
                             if (options.minify) {
                                 css = ugCss.processString(css);
                             }
