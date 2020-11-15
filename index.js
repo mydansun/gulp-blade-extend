@@ -65,7 +65,11 @@ function gulpBladeExtend(options = {}) {
 
             const currentBladeMd5 = String(md5(fileContent + options.version));
             const targetBlade = path.join(options.bladeDistPath, bladeRelativePath);
-            const targetBladeMd5 = String(md5(fs.readFileSync(targetBlade, "utf-8") + options.version));
+            let targetBladeMd5 = "";
+            if (fs.existsSync(targetBlade)) {
+                targetBladeMd5 = String(md5(fs.readFileSync(targetBlade, "utf-8") + options.version));
+            }
+
 
             if (targetBladeMd5.toUpperCase() !== currentBladeMd5.toUpperCase()) {
                 console.log(`Compiling ${bladeRelativePath}`);
