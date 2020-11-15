@@ -1,6 +1,6 @@
 {
   "name": "gulp-blade-extend",
-  "version": "2.2.2",
+  "version": "2.2.3",
   "description": "Support for writing HTML, JavaScript and CSS in the blade at the same time",
   "main": "index.js",
   "scripts": {
