@@ -64,11 +64,10 @@ function gulpBladeExtend(options = {}) {
             let fileContent = file.contents.toString();
 
             const currentBladeMd5 = String(md5(fileContent + options.version));
-            const md5File = path.join(options.bladeDistPath, bladeRelativePath) + '.md5';
-            fs.ensureFileSync(md5File);
-            const previousBladeMd5 = fs.readFileSync(md5File, "utf-8");
+            const targetBlade = path.join(options.bladeDistPath, bladeRelativePath);
+            const targetBladeMd5 = String(md5(fs.readFileSync(targetBlade, "utf-8") + options.version));
 
-            if (previousBladeMd5.toLowerCase() !== currentBladeMd5.toLowerCase()) {
+            if (targetBladeMd5.toUpperCase() !== currentBladeMd5.toUpperCase()) {
                 console.log(`Compiling ${bladeRelativePath}`);
                 const cssExp = /<style\s+data-scoped(.*?)>([\s\S]*?)<\/style>/gi;
                 const cssResult = cssExp.exec(fileContent);
@@ -191,8 +190,6 @@ function gulpBladeExtend(options = {}) {
 
                 //Write new content to file
                 file.contents = new Buffer(fileContent);
-
-                fs.outputFileSync(md5File, currentBladeMd5);
             } else {
                 //Don't forget to let the unmodified file also get the Buffer of the previous version of the compiled file.
                 const targetFile = path.join(options.bladeDistPath, bladeRelativePath);
