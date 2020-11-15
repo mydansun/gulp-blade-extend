@@ -62,9 +62,10 @@ function gulpBladeExtend(options = {}) {
         if (file.isBuffer()) {
             const bladeRelativePath = path.relative(path.resolve(options.bladeSrcPath), file.path);
             let fileContent = file.contents.toString();
+            const fileContentInBase64 = Buffer.from(fileContent).toString('base64');
 
-            const currentBladeMd5 = String(md5(fileContent + options.version));
-            const targetOriginalBlade = path.join(options.bladeDistPath, bladeRelativePath);
+            const currentBladeMd5 = String(md5(fileContentInBase64 + options.version));
+            const targetOriginalBlade = path.join(options.bladeDistPath, bladeRelativePath) + ".src";
             let targetOriginalBladeMd5 = "";
             if (fs.existsSync(targetOriginalBlade)) {
                 targetOriginalBladeMd5 = String(md5(fs.readFileSync(targetOriginalBlade, "utf-8") + options.version));
@@ -72,7 +73,7 @@ function gulpBladeExtend(options = {}) {
 
             if (targetOriginalBladeMd5.toUpperCase() !== currentBladeMd5.toUpperCase()) {
                 console.log(`Compiling ${bladeRelativePath}`);
-                fs.outputFileSync(targetOriginalBlade, fileContent)
+                fs.outputFileSync(targetOriginalBlade, fileContentInBase64)
                 const cssExp = /<style\s+data-scoped(.*?)>([\s\S]*?)<\/style>/gi;
                 const cssResult = cssExp.exec(fileContent);
                 if (cssResult !== null) {
